@@ -36,7 +36,6 @@ def wait_for_port(port: int):
 #
 # If you want to run it with an A100 GPU, just change `gpu="a10g"` to `gpu="a100"`.
 
-
 @stub.function(
     image=Image.debian_slim()
     .apt_install(
@@ -48,35 +47,22 @@ def wait_for_port(port: int):
     )
     .env({"LD_PRELOAD": "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"})
     .run_commands(
-        "git clone --depth 1 --branch v1.6.0 https://github.com/AUTOMATIC1111/stable-diffusion-webui /webui",
-        "python -m venv /webui/venv",
-        "cd /webui && . venv/bin/activate && "
-        + "python -c 'from modules import launch_utils; launch_utils.prepare_environment()' --xformers",
+        "mkdir webui && cd webui && wget -q https://raw.githubusercontent.com/AUTOMATIC1111/stable-diffusion-webui/master/webui.sh",
         gpu="a10g",
     )
     .run_commands(
-        "cd /webui && . venv/bin/activate && "
-        + "python -c 'from modules import shared_init, initialize; shared_init.initialize(); initialize.initialize()'",
+        "cd webui && chmod +x ./webui.sh && ./webui.sh -f"
     ),
     gpu="a10g",
     cpu=2,
     memory=1024,
     timeout=3600,
 )
+
 def start_web_ui():
     START_COMMAND = r"""
 cd /webui && \
-. venv/bin/activate && \
-accelerate launch \
-    --num_processes=1 \
-    --num_machines=1 \
-    --mixed_precision=fp16 \
-    --dynamo_backend=inductor \
-    --num_cpu_threads_per_process=6 \
-    /webui/launch.py \
-        --skip-prepare-environment \
-        --listen \
-        --port 8000
+./webui.sh -f --port 8000 --listen
 """
     with forward(8000) as tunnel:
         p = subprocess.Popen(START_COMMAND, shell=True)
